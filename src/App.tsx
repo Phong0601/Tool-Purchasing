@@ -487,8 +487,11 @@ export default function App() {
             </div>
 
             {/* A4 Document Container */}
-            <div className="flex-1 overflow-y-auto bg-slate-100 p-0 sm:p-8 flex justify-center print:bg-white print:p-0 print:overflow-visible">
-              <div className="bg-white w-full max-w-[210mm] min-h-[297mm] p-8 sm:p-12 shadow-md border border-slate-300 text-[13px] text-black font-serif leading-relaxed print:shadow-none print:border-none print:p-0">
+            <div className="flex-1 overflow-y-auto bg-slate-100 p-0 sm:p-8 print:bg-white print:p-0 print:overflow-visible">
+              <div 
+                className="mx-auto bg-white w-full max-w-[210mm] min-h-[297mm] h-max p-8 sm:p-12 shadow-md border border-slate-300 text-[13px] text-black leading-relaxed print:shadow-none print:border-none print:p-0"
+                style={{ fontFamily: '"Times New Roman", Times, serif' }}
+              >
                 
                 {/* Company Header (Simulated) */}
                 <div className="flex justify-between items-start mb-4 border-b-2 border-slate-800 pb-4">
@@ -541,15 +544,15 @@ export default function App() {
                 {/* Items Table */}
                 <table className="w-full border-collapse border border-slate-800 mb-6 text-sm">
                   <thead>
-                    <tr className="bg-slate-100 font-bold text-center">
+                    <tr className="bg-slate-200 font-bold text-center">
                       <th className="border border-slate-800 p-2 w-12">STT</th>
-                      <th className="border border-slate-800 p-2">Mã SP</th>
+                      <th className="border border-slate-800 p-2 w-24">Mã SP</th>
                       <th className="border border-slate-800 p-2">Tên Sản Phẩm</th>
-                      <th className="border border-slate-800 p-2">SL Đặt</th>
-                      <th className="border border-slate-800 p-2">Đơn Giá</th>
-                      <th className="border border-slate-800 p-2">VAT</th>
-                      <th className="border border-slate-800 p-2">Thành Tiền</th>
-                      <th className="border border-slate-800 p-2">Ghi Chú</th>
+                      <th className="border border-slate-800 p-2 w-20">SL Đặt</th>
+                      <th className="border border-slate-800 p-2 w-28">Đơn Giá</th>
+                      <th className="border border-slate-800 p-2 w-24">VAT</th>
+                      <th className="border border-slate-800 p-2 w-32">Thành Tiền</th>
+                      <th className="border border-slate-800 p-2 w-32">Ghi Chú</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -558,7 +561,7 @@ export default function App() {
                       const vatAmount = amount * (previewPO.vatRate || 0) / 100;
                       const totalItemAmount = amount + vatAmount;
                       return (
-                        <tr key={idx}>
+                        <tr key={idx} className="even:bg-slate-50 hover:bg-slate-100 transition-colors">
                           <td className="border border-slate-800 p-2 text-center">{idx + 1}</td>
                           <td className="border border-slate-800 p-2 text-center">{item.productName}</td>
                           <td className="border border-slate-800 p-2">{item.unit}</td>
@@ -601,7 +604,7 @@ export default function App() {
 
                       return (
                         <>
-                          <tr className="font-bold bg-slate-50">
+                          <tr className="font-bold bg-slate-200">
                             <td colSpan={3} className="border border-slate-800 p-2 text-center">TỔNG CỘNG</td>
                             <td className="border border-slate-800 p-2 text-center">
                               {new Intl.NumberFormat('vi-VN').format(totalQuantity)}
@@ -612,7 +615,7 @@ export default function App() {
                             </td>
                             <td className="border border-slate-800 p-2"></td>
                           </tr>
-                          <tr className="font-bold bg-slate-50">
+                          <tr className="font-bold bg-slate-100">
                             <td colSpan={3} className="border border-slate-800 p-2 text-center">CỌC</td>
                             <td colSpan={3} className={`border border-slate-800 p-2 text-center ${previewPO.supplier.deposit ? '' : 'bg-yellow-200'}`}>
                               {previewPO.supplier.deposit || '=DATA NCC'}
@@ -622,7 +625,7 @@ export default function App() {
                             </td>
                             <td className="border border-slate-800 p-2"></td>
                           </tr>
-                          <tr className="font-bold bg-slate-50">
+                          <tr className="font-bold bg-slate-100">
                             <td colSpan={3} className="border border-slate-800 p-2 text-center">CHỐT PO</td>
                             <td colSpan={3} className={`border border-slate-800 p-2 text-center ${previewPO.supplier.deposit ? '' : 'bg-yellow-200'}`}>
                               {previewPO.supplier.deposit ? `${100 - depositPercent}%-CỌC` : '=100%-CỌC'}
