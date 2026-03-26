@@ -75,13 +75,6 @@ const base64ToArrayBuffer = (base64: string) => {
   return bytes.buffer;
 };
 
-const getCellText = (cell: ExcelJS.Cell): string => {
-  if (cell.value && typeof cell.value === 'object' && 'richText' in cell.value) {
-    return (cell.value as any).richText.map((rt: any) => rt.text).join('');
-  }
-  return String(cell.value || '');
-};
-
 export const generatePOExcel = async (po: PO, templateBase64: string | null) => {
   if (!templateBase64) {
     throw new Error("Không có file mẫu PO");
@@ -105,36 +98,26 @@ export const generatePOExcel = async (po: PO, templateBase64: string | null) => 
   worksheet.getCell('E9').value = po.supplier.phone;
   worksheet.getCell('C11').value = po.supplier.address;
 
+  // Map Bank Info (Keep existing or adjust if needed)
+  worksheet.getCell('E24').value = po.supplier.bankAccountName || '';
+  worksheet.getCell('E25').value = po.supplier.bankAccountNumber || '';
+  worksheet.getCell('E26').value = po.supplier.bankName || '';
+
   // 1. Xác định vị trí và dọn dẹp không gian cho bảng
   const startRow = 15;
-  
-  let footerStartRow = -1;
-  for (let i = startRow; i <= startRow + 20; i++) {
-    const row = worksheet.getRow(i);
-    const cellVal = String(getCellText(row.getCell(1)) + getCellText(row.getCell(2)) + getCellText(row.getCell(5))).toUpperCase();
-    if (cellVal.includes('CỘNG TIỀN HÀNG') || cellVal.includes('THUẾ VAT') || cellVal.includes('TỔNG CỘNG')) {
-      footerStartRow = i;
-      break;
-    }
-  }
-  if (footerStartRow === -1) footerStartRow = startRow + 1; // Fallback an toàn
-
-  // Số dòng item mẫu có sẵn trong file (khoảng cách từ header đến footer)
-  // Trừ 1 vì startRow là header
-  const sampleRowCount = Math.max(0, footerStartRow - startRow - 1);
   const itemsCount = po.items.length;
+  const rowsNeeded = 1 + itemsCount + 3; // 1 Header + N Items + 3 Footer
+  const rowsAvailable = 9; // Khoảng cách từ dòng 15 đến 23 (trước Bank Info ở dòng 24)
 
-  // 3. CHÈN/XÓA DÒNG (Bảo toàn Footer)
-  if (itemsCount > sampleRowCount) {
-    const rowsToInsert = itemsCount - sampleRowCount;
-    worksheet.spliceRows(footerStartRow, 0, ...Array(rowsToInsert).fill([]));
-  } else if (itemsCount < sampleRowCount) {
-    const rowsToDelete = sampleRowCount - itemsCount;
-    worksheet.spliceRows(startRow + 1 + itemsCount, rowsToDelete);
+  // Chèn hoặc xóa dòng để đẩy Bank Info (E24) lên/xuống cho vừa khít
+  if (rowsNeeded > rowsAvailable) {
+    worksheet.spliceRows(24, 0, ...Array(rowsNeeded - rowsAvailable).fill([]));
+  } else if (rowsNeeded < rowsAvailable) {
+    worksheet.spliceRows(24 - (rowsAvailable - rowsNeeded), rowsAvailable - rowsNeeded);
   }
 
-  // Xóa sạch dữ liệu và style cũ trong vùng chuẩn bị render table (chỉ xóa vùng items)
-  for (let i = startRow + 1; i <= startRow + itemsCount; i++) {
+  // Xóa sạch dữ liệu và style cũ trong vùng chuẩn bị render table
+  for (let i = startRow; i < startRow + rowsNeeded; i++) {
     const row = worksheet.getRow(i);
     row.eachCell({ includeEmpty: true }, (cell) => {
       cell.value = null;
@@ -221,7 +204,7 @@ export const generatePOExcel = async (po: PO, templateBase64: string | null) => 
   const depositAmount = (totalAfterTax * depositPercent) / 100;
   const remainingAmount = totalAfterTax - depositAmount;
 
-  const newFooterStartRow = startRow + 1 + itemsCount;
+  const footerStartRow = startRow + 1 + itemsCount;
   const footers = [
     { label: 'Tổng cộng', qty: totalQuantity, amount: totalAfterTax },
     { label: 'Cọc', qty: '', amount: depositAmount },
@@ -229,7 +212,7 @@ export const generatePOExcel = async (po: PO, templateBase64: string | null) => 
   ];
 
   footers.forEach((f, index) => {
-    const rowNumber = newFooterStartRow + index;
+    const rowNumber = footerStartRow + index;
     const row = worksheet.getRow(rowNumber);
     
     // Merge 3 ô đầu tiên cho Label
@@ -264,35 +247,6 @@ export const generatePOExcel = async (po: PO, templateBase64: string | null) => 
     }
     row.height = 25;
     row.commit();
-  });
-
-  // 5. Điền thông tin thanh toán (Bank Info) vào cột E tương ứng với các label
-  worksheet.eachRow((row, rowNumber) => {
-    if (rowNumber > startRow) {
-      let hasTenTK = false;
-      let hasSTK = false;
-      let hasNganHang = false;
-
-      row.eachCell((cell) => {
-        const val = getCellText(cell).toUpperCase();
-        if (val.includes('TÊN TK NHẬN') || val.includes('TÊN TÀI KHOẢN')) hasTenTK = true;
-        if (val.includes('STK') || val.includes('SỐ TÀI KHOẢN')) hasSTK = true;
-        if (val.includes('NGÂN HÀNG')) hasNganHang = true;
-      });
-
-      if (hasTenTK) {
-        row.getCell(5).value = po.supplier.bankAccountName || '';
-        row.getCell(5).font = { name: 'Times New Roman', size: 11, bold: true };
-      }
-      if (hasSTK) {
-        row.getCell(5).value = po.supplier.bankAccountNumber || '';
-        row.getCell(5).font = { name: 'Times New Roman', size: 11, bold: true };
-      }
-      if (hasNganHang) {
-        row.getCell(5).value = po.supplier.bankName || '';
-        row.getCell(5).font = { name: 'Times New Roman', size: 11, bold: true };
-      }
-    }
   });
 
   // Export using the requested method to avoid corruption
