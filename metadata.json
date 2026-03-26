@@ -1,5 +1,5 @@
 {
   "name": "Procurement Tool",
-  "description": "Công cụ hỗ trợ thu mua giúp chuyển đổi File PO Tổng thành các đơn hàng riêng lẻ cho từng nhà cung cấp dựa trên Form mẫu.",
+  "description": "Công cụ hỗ trợ thu mua giúp chuyển đổi File PO Tổng thành các đơn hàng riêng lẻ cho từng nhà cung cấp dựa trên Form mẫu (Version 4).",
   "requestFramePermissions": []
 }
