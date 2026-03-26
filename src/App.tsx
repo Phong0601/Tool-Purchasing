@@ -553,25 +553,34 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {previewPO.items.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="border border-slate-800 p-2 text-center">{idx + 1}</td>
-                        <td className="border border-slate-800 p-2 text-center">{item.productName}</td>
-                        <td className="border border-slate-800 p-2">{item.unit}</td>
-                        <td className="border border-slate-800 p-2 text-center">{item.quantity}</td>
-                        <td className="border border-slate-800 p-2 text-right">
-                          {new Intl.NumberFormat('vi-VN').format(item.unitPrice)}
-                        </td>
-                        <td className="border border-slate-800 p-2 text-center">VAT</td>
-                        <td className="border border-slate-800 p-2 text-right">
-                          {new Intl.NumberFormat('vi-VN').format(item.quantity * item.unitPrice)}
-                        </td>
-                        <td className="border border-slate-800 p-2"></td>
-                      </tr>
-                    ))}
+                    {previewPO.items.map((item, idx) => {
+                      const amount = item.quantity * item.unitPrice;
+                      const vatAmount = amount * (previewPO.vatRate || 0) / 100;
+                      const totalItemAmount = amount + vatAmount;
+                      return (
+                        <tr key={idx}>
+                          <td className="border border-slate-800 p-2 text-center">{idx + 1}</td>
+                          <td className="border border-slate-800 p-2 text-center">{item.productName}</td>
+                          <td className="border border-slate-800 p-2">{item.unit}</td>
+                          <td className="border border-slate-800 p-2 text-center">{item.quantity}</td>
+                          <td className="border border-slate-800 p-2 text-right">
+                            {new Intl.NumberFormat('vi-VN').format(item.unitPrice)}
+                          </td>
+                          <td className="border border-slate-800 p-2 text-right">
+                            {new Intl.NumberFormat('vi-VN').format(vatAmount)}
+                          </td>
+                          <td className="border border-slate-800 p-2 text-right">
+                            {new Intl.NumberFormat('vi-VN').format(totalItemAmount)}
+                          </td>
+                          <td className="border border-slate-800 p-2"></td>
+                        </tr>
+                      );
+                    })}
                     {(() => {
                       const totalQuantity = previewPO.items.reduce((sum, item) => sum + item.quantity, 0);
-                      const totalAmount = previewPO.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+                      const totalBeforeTax = previewPO.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+                      const totalVat = totalBeforeTax * (previewPO.vatRate || 0) / 100;
+                      const totalAmount = totalBeforeTax + totalVat;
                       
                       let depositPercent = 0;
                       if (previewPO.supplier.deposit) {

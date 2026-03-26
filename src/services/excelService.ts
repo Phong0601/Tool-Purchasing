@@ -181,6 +181,7 @@ export const generatePOExcel = async (po: PO, templateBase64: string | null) => 
     
     const amount = item.quantity * item.unitPrice;
     const vatAmount = amount * (po.vatRate || 0) / 100;
+    const totalItemAmount = amount + vatAmount;
     
     totalBeforeTax += amount;
     totalQuantity += item.quantity;
@@ -191,8 +192,8 @@ export const generatePOExcel = async (po: PO, templateBase64: string | null) => 
     row.getCell(3).value = item.unit;
     row.getCell(4).value = item.quantity;
     row.getCell(5).value = item.unitPrice;
-    row.getCell(6).value = `${po.vatRate || 0}%`;
-    row.getCell(7).value = amount;
+    row.getCell(6).value = vatAmount;
+    row.getCell(7).value = totalItemAmount;
     row.getCell(8).value = ''; // Ghi chú
     
     for (let col = 1; col <= 8; col++) {
@@ -203,11 +204,11 @@ export const generatePOExcel = async (po: PO, templateBase64: string | null) => 
         bottom: { style: 'thin' }, right: { style: 'thin' }
       };
       
-      if (col === 1 || col === 4 || col === 6) {
+      if (col === 1 || col === 4) {
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
       } else if (col === 2 || col === 3 || col === 8) {
         cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-      } else if (col === 5 || col === 7) {
+      } else if (col === 5 || col === 6 || col === 7) {
         cell.alignment = { vertical: 'middle', horizontal: 'right' };
         cell.numFmt = '#,##0';
       }
@@ -234,10 +235,14 @@ export const generatePOExcel = async (po: PO, templateBase64: string | null) => 
   const remainingAmount = totalAfterTax - depositAmount;
 
   const footerStartRow = startRow + 1 + itemsCount;
+  
+  const depositText = po.supplier.deposit || '=DATA NCC';
+  const remainingText = po.supplier.deposit ? `${100 - depositPercent}%-CỌC` : '=100%-CỌC';
+
   const footers = [
-    { label: 'Tổng cộng', qty: totalQuantity, amount: totalAfterTax },
-    { label: 'Cọc', qty: '', amount: depositAmount },
-    { label: 'Chốt PO', qty: '', amount: remainingAmount }
+    { label: 'TỔNG CỘNG', type: 'total' },
+    { label: 'CỌC', type: 'deposit' },
+    { label: 'CHỐT PO', type: 'remaining' }
   ];
 
   footers.forEach((f, index) => {
@@ -249,8 +254,19 @@ export const generatePOExcel = async (po: PO, templateBase64: string | null) => 
     const labelCell = row.getCell(1);
     labelCell.value = f.label;
     
-    row.getCell(4).value = f.qty;
-    row.getCell(7).value = f.amount;
+    if (f.type === 'total') {
+      row.getCell(4).value = totalQuantity;
+      worksheet.mergeCells(`E${rowNumber}:F${rowNumber}`);
+      row.getCell(7).value = totalAfterTax;
+    } else if (f.type === 'deposit') {
+      worksheet.mergeCells(`D${rowNumber}:F${rowNumber}`);
+      row.getCell(4).value = depositText;
+      row.getCell(7).value = po.supplier.deposit ? depositAmount : '';
+    } else if (f.type === 'remaining') {
+      worksheet.mergeCells(`D${rowNumber}:F${rowNumber}`);
+      row.getCell(4).value = remainingText;
+      row.getCell(7).value = po.supplier.deposit ? remainingAmount : '';
+    }
     
     for (let col = 1; col <= 8; col++) {
       const cell = row.getCell(col);
@@ -265,13 +281,13 @@ export const generatePOExcel = async (po: PO, templateBase64: string | null) => 
       };
       
       if (col === 1) {
-        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
       } else if (col === 4) {
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        if (f.qty !== '') cell.numFmt = '#,##0';
+        if (f.type === 'total') cell.numFmt = '#,##0';
       } else if (col === 7) {
         cell.alignment = { vertical: 'middle', horizontal: 'right' };
-        cell.numFmt = '#,##0';
+        if (cell.value !== '') cell.numFmt = '#,##0';
       }
     }
     row.height = 25;
