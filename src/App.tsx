@@ -496,9 +496,7 @@ export default function App() {
                 {/* Company Header (Simulated) */}
                 <div className="flex justify-between items-start mb-4 border-b-2 border-slate-800 pb-4">
                   <div className="flex gap-4">
-                    <div className="w-16 h-16 bg-emerald-900 text-white flex items-center justify-center font-bold text-2xl">
-                      L
-                    </div>
+                    <img src="/logo.png" alt="Leonardo Logo" className="w-16 h-16 object-contain" referrerPolicy="no-referrer" />
                     <div>
                       <h1 className="font-bold text-base">CÔNG TY TNHH LEONARDO</h1>
                       <p>Số 284 Pasteur, Phường Xuân Hòa, Thành phố Hồ Chí Minh</p>
