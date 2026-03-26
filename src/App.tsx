@@ -212,7 +212,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 text-indigo-600">
             <FileSpreadsheet className="w-6 h-6" />
-            <h1 className="font-bold text-xl tracking-tight">Procurement Tool v4</h1>
+            <h1 className="font-bold text-xl tracking-tight">Tách PO</h1>
           </div>
           <nav className="flex gap-1">
             <button
