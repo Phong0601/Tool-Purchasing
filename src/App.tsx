@@ -145,7 +145,7 @@ export default function App() {
           poNumber,
           orderDate: orderDateStr,
           contractExpiry: expiryDateStr,
-          vatRate: 10,
+          vatRate: 8,
           poSuffix: defaultSuffix,
           shortCurrentDate,
           shortExpiryDate
