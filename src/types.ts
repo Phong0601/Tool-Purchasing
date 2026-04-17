@@ -31,3 +31,12 @@ export interface PO {
   shortCurrentDate: string;
   shortExpiryDate: string;
 }
+
+export interface NPLItem {
+  productCode: string;
+  productName: string;
+  materialCode: string;
+  materialName: string;
+  norm: number;
+  unit: string;
+}

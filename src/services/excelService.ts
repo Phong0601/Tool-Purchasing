@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
-import { Supplier, MasterPOItem, PO } from '../types';
+import { Supplier, MasterPOItem, PO, NPLItem } from '../types';
 
 export const parseSuppliers = async (file: File): Promise<Supplier[]> => {
   const data = await file.arrayBuffer();
@@ -63,6 +63,136 @@ export const parseMasterPO = async (file: File): Promise<MasterPOItem[]> => {
     }
   }
   return items;
+};
+
+export const parseNPL = async (file: File): Promise<NPLItem[]> => {
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data, { type: 'array' });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+
+  const parseNorm = (val: any): number => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    const cleaned = String(val).replace(/,/g, '.').trim();
+    const num = Number(cleaned);
+    return isNaN(num) ? 0 : num;
+  };
+
+  const items: NPLItem[] = [];
+  let currentProductCode = '';
+  let currentProductName = '';
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (row[1]) {
+      currentProductCode = String(row[1]).trim();
+      currentProductName = String(row[2] || '').trim();
+    }
+    if (!currentProductCode || !row[3]) continue;
+    items.push({
+      productCode: currentProductCode,
+      productName: currentProductName,
+      materialCode: String(row[3] || '').trim(),
+      materialName: String(row[4] || '').trim(),
+      norm: parseNorm(row[5]),
+      unit: String(row[6] || '').trim(),
+    });
+  }
+  return items;
+};
+
+export interface NPLDetailRow {
+  productCode: string;
+  productName: string;
+  poQuantity: number;
+  materialCode: string;
+  materialName: string;
+  norm: number;
+  quantity: number;
+  unit: string;
+}
+
+export interface NPLAggRow {
+  materialCode: string;
+  materialName: string;
+  totalQuantity: number;
+  unit: string;
+}
+
+export const exportNPLExcel = async (
+  poNumber: string,
+  supplierName: string,
+  details: NPLDetailRow[],
+  aggregated: NPLAggRow[]
+) => {
+  const wb = new ExcelJS.Workbook();
+
+  const headerFill: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F81BD' } };
+  const headerFont: Partial<ExcelJS.Font> = { bold: true, name: 'Times New Roman', size: 11, color: { argb: 'FFFFFFFF' } };
+  const thinBorder: Partial<ExcelJS.Borders> = {
+    top: { style: 'thin' }, left: { style: 'thin' },
+    bottom: { style: 'thin' }, right: { style: 'thin' },
+  };
+  const applyHeader = (row: ExcelJS.Row, values: string[]) => {
+    values.forEach((v, i) => {
+      const cell = row.getCell(i + 1);
+      cell.value = v;
+      cell.font = headerFont;
+      cell.fill = headerFill;
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = thinBorder;
+    });
+    row.height = 30;
+  };
+
+  wb.creator = supplierName;
+
+  // Sheet 1: Chi tiết
+  const ws1 = wb.addWorksheet('Chi tiết NPL');
+  ws1.columns = [
+    { width: 6 }, { width: 14 }, { width: 30 }, { width: 8 },
+    { width: 16 }, { width: 35 }, { width: 12 }, { width: 14 }, { width: 10 },
+  ];
+  applyHeader(ws1.getRow(1), ['STT', 'Mã SP', 'Tên SP', 'SL PO', 'Mã NPL', 'Tên NPL', 'Định Mức', 'SL Cần', 'Đơn Vị']);
+  details.forEach((d, idx) => {
+    const row = ws1.getRow(idx + 2);
+    row.values = [idx + 1, d.productCode, d.productName, d.poQuantity, d.materialCode, d.materialName, d.norm, d.quantity || '', d.unit];
+    for (let c = 1; c <= 9; c++) {
+      const cell = row.getCell(c);
+      cell.font = { name: 'Times New Roman', size: 11 };
+      cell.border = thinBorder;
+      if ([1, 4, 7, 8].includes(c)) cell.alignment = { horizontal: 'center' };
+    }
+    row.height = 22;
+  });
+
+  // Sheet 2: Tổng hợp
+  const ws2 = wb.addWorksheet('Tổng hợp NPL');
+  ws2.columns = [{ width: 6 }, { width: 18 }, { width: 40 }, { width: 16 }, { width: 12 }];
+  applyHeader(ws2.getRow(1), ['STT', 'Mã NPL', 'Tên NPL', 'Tổng SL', 'Đơn Vị']);
+  aggregated.forEach((a, idx) => {
+    const row = ws2.getRow(idx + 2);
+    row.values = [idx + 1, a.materialCode, a.materialName, a.totalQuantity, a.unit];
+    for (let c = 1; c <= 5; c++) {
+      const cell = row.getCell(c);
+      cell.font = { name: 'Times New Roman', size: 11 };
+      cell.border = thinBorder;
+      if ([1, 4].includes(c)) cell.alignment = { horizontal: 'center' };
+    }
+    row.height = 22;
+  });
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `NPL_${poNumber}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
 };
 
 const base64ToArrayBuffer = (base64: string) => {
@@ -327,7 +457,6 @@ export const generatePOExcel = async (po: PO, templateBase64: string | null) => 
   const outBuffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = window.URL.createObjectURL(blob);
-  
   const a = document.createElement('a');
   a.href = url;
   a.download = `PO_${po.poNumber}.xlsx`;
